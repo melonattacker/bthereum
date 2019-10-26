@@ -22,5 +22,9 @@ name = "message"
 path = "src/message.rs"
 
 [[bin]]
-name = "servercore"
-path = "src/servercore.rs"
+name = "ServerCore"
+path = "src/ServerCore.rs"
+
+[[bin]]
+name = "ConnectionManager"
+path = "src/ConnectionManager.rs"

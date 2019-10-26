@@ -9,9 +9,10 @@ struct ServerCore {
 }
 
 impl ServerCore {
-    // fn new() -> u8 {
-    //     ServerCore { state: 0 };
-    // }
+    fn new() -> ServerCore {
+        let server = ServerCore { state: 0 };
+        return server;
+    }
 
     fn start(mut self) -> ServerCore {
         self.state = 1;
@@ -34,9 +35,7 @@ impl ServerCore {
 }
 
 fn main() {
-    let mut _server = ServerCore { state: 0 };
-    // let state = &_server.start();
-    let mut server2 = _server.start();
-    let mut server3 = server2.join_network();
-    println!("state: {}", server3.get_my_current_state());
+    let mut _server = ServerCore::new();
+    let mut _server2 = _server.start();
+    println!("state: {}", _server2.get_my_current_state());
 }
