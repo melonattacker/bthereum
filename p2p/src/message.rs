@@ -27,12 +27,6 @@ pub struct Message {
 } 
 
 pub fn build(msg_type: u8, payload: &Vec<String>) -> Result<String, failure::Error>{
-    // let data = Message {
-    //     protocol: "ethereum".to_string(),
-    //     version: "0.1.0".to_string(),
-    //     msg_type: msg_type,
-    //     payload: payload.to_vec()
-    // };
 
     let data = json! ({
         "protocol": "ethereum".to_string(),
@@ -43,7 +37,9 @@ pub fn build(msg_type: u8, payload: &Vec<String>) -> Result<String, failure::Err
 
     let msg: String = data.to_string();
 
-    println!("{}", msg);
-
     Ok(msg)
 }
+
+pub fn parse(msg: String) {
+}
+

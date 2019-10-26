@@ -7,5 +7,5 @@ fn main() {
     vec.push("aaa".to_string());
     vec.push("bbb".to_string());
     let msg = message::build(1, &vec).unwrap();
-    println!("{}", msg);
+    message::parse(msg);
 }
