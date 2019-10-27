@@ -1,5 +1,9 @@
+use std::io::{Read};
 use std::net::{TcpListener, TcpStream};
 use std::{str, thread};
+use serde_json::{Value};
+
+mod message;
 
 struct ConnectionManager {
     host: String,
@@ -35,28 +39,15 @@ impl ConnectionManager {
 
     fn _wait_for_access(self) -> Result<(), failure::Error> {
         let port: String = self.port.to_string();
-        let address: &str = &(self.host + port);
+        let address: String = format!("{}:{}", self.host, port);
         let listener = TcpListener::bind(address)?;
         loop {
-            println!("Waiting for the connection...")
+            println!("Waiting for the connection...");
             let (stream, addr) = listener.accept()?;
             println!("Connected by... {}", addr);
             thread::spawn(move || {
-                _handle_message(stream).unwrap_or_else(|error| error!("{:?}", error));
+                _handle_message(stream).unwrap();
             });
-        }
-    }
-
-    fn _handle_message(mut stream: TcpStream) -> Result<(), failure::Error> {
-        let mut buffer = [0u8; 1024];
-        loop {
-            let nbytes = stream.read(&mut buffer)?;
-            if nbytes == 0 {
-                debug!("Connection closed.");
-                return Ok(());
-            }
-            // print!("{}", str::from_utf8(&buffer[..nbytes])?);
-            let data = str::from_utf8(&buffer[..nbytes])?;
         }
     }
 
@@ -78,6 +69,23 @@ impl ConnectionManager {
     fn _check_peers_connection(self) {
     }
 }
+
+fn _handle_message(mut stream: TcpStream) -> Result<(), failure::Error> {
+    let mut buffer = [0u8; 1024];
+    loop {
+        let nbytes = stream.read(&mut buffer)?;
+        if nbytes == 0 {
+            println!("Connection closed.");
+            return Ok(());
+        }
+        // print!("{}", str::from_utf8(&buffer[..nbytes])?);
+        let data: &str = str::from_utf8(&buffer[..nbytes])?;
+        let message: Value = serde_json::from_str(data).unwrap();
+        let (result, reason, cmd, payload) = message::parse(message);
+        println!("result: {}, reason: {}, cmd: {}, payload: {:?}", result, reason, cmd, payload);
+    }
+}
+
 
 fn main() {
     let manager = ConnectionManager::new("127.0.0".to_string(), 33333);
