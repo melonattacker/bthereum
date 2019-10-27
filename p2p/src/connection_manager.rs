@@ -81,8 +81,8 @@ fn _handle_message(mut stream: TcpStream) -> Result<(), failure::Error> {
         // print!("{}", str::from_utf8(&buffer[..nbytes])?);
         let data: &str = str::from_utf8(&buffer[..nbytes])?;
         let message: Value = serde_json::from_str(data).unwrap();
-        let (result, reason, cmd, payload) = message::parse(message);
-        println!("result: {}, reason: {}, cmd: {}, payload: {:?}", result, reason, cmd, payload);
+        let (result, reason, cmd, my_port, payload) = message::parse(message);
+        println!("result: {}, reason: {}, cmd: {}, my_port: {}, payload: {:?}", result, reason, cmd, my_port, payload);
     }
 }
 

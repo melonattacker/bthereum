@@ -24,38 +24,41 @@ pub struct Message {
     protocol: String,
     version: String,
     msg_type: u8,
+    my_port: u32,
     payload: Vec<String>,
 } 
 
-pub fn build(msg_type: u8, payload: &Vec<String>) -> Result<Value, failure::Error>{
+pub fn build(msg_type: u8, my_port: u32, payload: &Vec<String>) -> Result<Value, failure::Error>{
 
     let data = json! ({
         "protocol": "bthereum".to_string(),
         "version": "0.1.0".to_string(),
         "msg_type": msg_type,
+        "my_port": my_port,
         "payload": payload.to_vec()
     });
 
     Ok(data)
 }
 
-pub fn parse(msg: Value) -> (String, u8, u8, Vec<String>) {
+pub fn parse(msg: Value) -> (String, u8, u8, u32, Vec<String>) {
     let msg: Message = serde_json::from_value(msg).unwrap();
     let ver: String = msg.version;
     let cmd: u8 = msg.msg_type;
+    let my_port: u32 = msg.my_port;
     let payload: Vec<String> = msg.payload;
 
     let error = "error".to_string();
     let ok = "ok".to_string();
 
     if msg.protocol != "bthereum".to_string() {
-        return (error, 1, 8, payload);
+        return (error, 1, 8, my_port, payload);
     } else if ver != "0.1.0".to_string() {
-        return (error, 2, 8, payload);
+        return (error, 2, 8, my_port, payload);
     } else if cmd == 2 {
-        return (ok, 3, cmd, payload);
+        return (ok, 3, cmd, my_port, payload);
     } else {
-        return (ok, 4, cmd, payload);
+        return (ok, 4, cmd, my_port, payload);
     }
 }
 
@@ -63,8 +66,8 @@ fn main() {
     let mut vec: Vec<String> = Vec::new();
     vec.push("aaa".to_string());
     vec.push("bbb".to_string());
-    let data = build(1, &vec).unwrap();
-    let (result, reason, cmd, payload) = parse(data);
-    println!("result: {}, reason: {}, cmd: {}, payload: {:?}", result, reason, cmd, payload);
+    let data = build(1, 33332, &vec).unwrap();
+    let (result, reason, cmd, my_port, payload) = parse(data);
+    println!("result: {}, reason: {}, cmd: {}, myport: {}, payload: {:?}", result, reason, cmd, my_port, payload);
 }
 
