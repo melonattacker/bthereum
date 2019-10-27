@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 // use serde_json::Result;
-use serde_json::json;
+use serde_json::{ json, Value };
 
 // const PROTOCOL_NAME: &'static str = "bthereum";
 // const VERSION: &'static str = "0.1.0";
@@ -12,6 +12,7 @@ use serde_json::json;
 // const MSG_PING: u8 = 5;
 // const MSG_ADD_EDGE: u8 = 6;
 // const MSG_REMOVE_EDGE: u8 = 7;
+// const NULL = 8;
 
 // const ERR_PROTOCOL_UNMATCH: u8 = 1;
 // const ERR_VERSION_UNMATCH: u8 = 2;
@@ -26,20 +27,44 @@ pub struct Message {
     payload: Vec<String>,
 } 
 
-pub fn build(msg_type: u8, payload: &Vec<String>) -> Result<String, failure::Error>{
+pub fn build(msg_type: u8, payload: &Vec<String>) -> Result<Value, failure::Error>{
 
     let data = json! ({
-        "protocol": "ethereum".to_string(),
+        "protocol": "bthereum".to_string(),
         "version": "0.1.0".to_string(),
         "msg_type": msg_type,
         "payload": payload.to_vec()
     });
 
-    let msg: String = data.to_string();
-
-    Ok(msg)
+    Ok(data)
 }
 
-pub fn parse(msg: String) {
+pub fn parse(msg: Value) -> (String, u8, u8, Vec<String>) {
+    let msg: Message = serde_json::from_value(msg).unwrap();
+    let ver: String = msg.version;
+    let cmd: u8 = msg.msg_type;
+    let payload: Vec<String> = msg.payload;
+
+    let error = "error".to_string();
+    let ok = "ok".to_string();
+
+    if msg.protocol != "bthereum".to_string() {
+        return (error, 1, 8, payload);
+    } else if ver != "0.1.0".to_string() {
+        return (error, 2, 8, payload);
+    } else if cmd == 2 {
+        return (ok, 3, cmd, payload);
+    } else {
+        return (ok, 4, cmd, payload);
+    }
+}
+
+fn main() {
+    let mut vec: Vec<String> = Vec::new();
+    vec.push("aaa".to_string());
+    vec.push("bbb".to_string());
+    let data = build(1, &vec).unwrap();
+    let (result, reason, cmd, payload) = parse(data);
+    println!("result: {}, reason: {}, cmd: {}, payload: {:?}", result, reason, cmd, payload);
 }
 

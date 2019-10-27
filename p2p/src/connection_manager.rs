@@ -1,3 +1,6 @@
+use std::net::{TcpListener, TcpStream};
+use std::{str, thread};
+
 struct ConnectionManager {
     host: String,
     port: u32,
@@ -30,7 +33,31 @@ impl ConnectionManager {
     fn send_msg_to_all_peers(self) {
     }
 
-    fn _handle_message(self) {
+    fn _wait_for_access(self) -> Result<(), failure::Error> {
+        let port: String = self.port.to_string();
+        let address: &str = &(self.host + port);
+        let listener = TcpListener::bind(address)?;
+        loop {
+            println!("Waiting for the connection...")
+            let (stream, addr) = listener.accept()?;
+            println!("Connected by... {}", addr);
+            thread::spawn(move || {
+                _handle_message(stream).unwrap_or_else(|error| error!("{:?}", error));
+            });
+        }
+    }
+
+    fn _handle_message(mut stream: TcpStream) -> Result<(), failure::Error> {
+        let mut buffer = [0u8; 1024];
+        loop {
+            let nbytes = stream.read(&mut buffer)?;
+            if nbytes == 0 {
+                debug!("Connection closed.");
+                return Ok(());
+            }
+            // print!("{}", str::from_utf8(&buffer[..nbytes])?);
+            let data = str::from_utf8(&buffer[..nbytes])?;
+        }
     }
 
     fn _add_peer(self) {
