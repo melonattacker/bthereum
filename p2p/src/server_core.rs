@@ -3,7 +3,7 @@
 // STATE_CONNECTED_TO_NETWORK = 2
 // STATE_SHUTTING_DOWN = 3
 
-
+#[derive(Debug)]
 struct ServerCore {
     state: u8
 }
@@ -14,17 +14,15 @@ impl ServerCore {
         return server;
     }
 
-    fn start(mut self) -> ServerCore {
+    fn start(&mut self) {
         self.state = 1;
-        return self;
     }
 
-    fn join_network(mut self) -> ServerCore {
+    fn join_network(&mut self) {
         self.state = 2;
-        return self;
     }
 
-    fn shutdown(mut self) {
+    fn shutdown(&mut self) {
         self.state = 3;
         println!("Shutdown server...");
     }
@@ -36,6 +34,8 @@ impl ServerCore {
 
 fn main() {
     let mut _server = ServerCore::new();
-    let mut _server2 = _server.start();
-    println!("state: {}", _server2.get_my_current_state());
+    &_server.start();
+    &_server.join_network();
+    &_server.shutdown();
+    println!("state: {}", _server.get_my_current_state());
 }
