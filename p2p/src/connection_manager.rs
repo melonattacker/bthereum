@@ -2,7 +2,7 @@ use std::io::{Read};
 use std::net::{TcpListener, TcpStream, SocketAddr, IpAddr, Ipv4Addr};
 use std::{str, thread};
 use serde_json::{Value};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 mod message;
 
@@ -30,7 +30,7 @@ struct ChildConnectionManager {
 }
 #[derive(Debug)]
 struct ConnectionManager {
-    inner: Arc<ChildConnectionManager>
+    inner: Arc<Mutex<ChildConnectionManager>>
 }
 
 impl ConnectionManager {
@@ -38,10 +38,12 @@ impl ConnectionManager {
         println!("Initializing ConnectionManager...");
         let manager = ConnectionManager {
             inner: Arc::new(
-                ChildConnectionManager {
-                    addr: addr,
-                    core_node_set: Vec::new()
-                }
+                Mutex::new(
+                    ChildConnectionManager {
+                        addr: addr,
+                        core_node_set: Vec::new()
+                    }
+                )
             )
         };
         return manager;
@@ -60,22 +62,22 @@ impl ConnectionManager {
     }
 
     fn _wait_for_access(&mut self) -> Result<(), failure::Error> {
-        let mut _local_self = self.inner.clone();
-        let listener = TcpListener::bind(_local_self.addr).unwrap();
+        let _local_self = self.inner.clone();
+        let listener = TcpListener::bind(_local_self.lock().unwrap().addr).unwrap();
         loop {
-            let mut local_self = self.inner.clone();
+            let local_self = self.inner.clone();
             println!("Waiting for the connection...");
             let (stream, addr) = listener.accept()?;
             println!("Connected by... {}", addr);
             thread::spawn(move|| {
-                local_self._handle_message(stream, addr).unwrap();
+                local_self.lock().unwrap()._handle_message(stream, addr).unwrap();
             });
         }
     }
 }
 
 impl ChildConnectionManager {
-    fn _handle_message(&self, mut stream: TcpStream, addr: SocketAddr) -> Result<(), failure::Error> {
+    fn _handle_message(&mut self, mut stream: TcpStream, addr: SocketAddr) -> Result<(), failure::Error> {
         let mut buffer = [0u8; 1024];
         loop {
             let nbytes = stream.read(&mut buffer)?;
@@ -100,7 +102,7 @@ impl ChildConnectionManager {
             else if status ==("ok".to_string(), 4) {
                 if cmd == 1 {
                     println!("Add node request was received!!");
-                    // self._add_peer(addr);
+                    self._add_peer(addr).unwrap();
                     return Ok(());
                 }
             }
@@ -113,21 +115,21 @@ impl ChildConnectionManager {
         return Ok(())
     }
 
-    fn _remove_peer(&mut self, peer: SocketAddr) -> Result<(), failure::Error> {
-        if self.core_node_set.contains(&peer) {
-            for i in 0..self.core_node_set.len() {
-                if self.core_node_set[i] == peer {
-                    println!("Removing peer: {}", peer);
-                    self.core_node_set.remove(i);
-                    println!("Current Core List: {:?}", self.core_node_set);
-                }
-            }
-        }
-        return Ok(())
-    }
+    // fn _remove_peer(&mut self, peer: SocketAddr) -> Result<(), failure::Error> {
+    //     if self.core_node_set.contains(&peer) {
+    //         for i in 0..self.core_node_set.len() {
+    //             if self.core_node_set[i] == peer {
+    //                 println!("Removing peer: {}", peer);
+    //                 self.core_node_set.remove(i);
+    //                 println!("Current Core List: {:?}", self.core_node_set);
+    //             }
+    //         }
+    //     }
+    //     return Ok(())
+    // }
 
-    fn _check_peers_connection(self) {
-    }
+    // fn _check_peers_connection(self) {
+    // }
 }
 fn main() {
     let socket: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 33333);
