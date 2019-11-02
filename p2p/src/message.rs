@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 // use serde_json::Result;
 use serde_json::{ json, Value };
+use std::net::SocketAddr;
 
 // const PROTOCOL_NAME: &'static str = "bthereum";
 // const VERSION: &'static str = "0.1.0";
@@ -24,8 +25,8 @@ pub struct Message {
     protocol: String,
     version: String,
     msg_type: u8,
-    my_port: u32,
-    payload: Vec<String>,
+    my_port: u16,
+    payload: Vec<SocketAddr>,
 } 
 
 // pub fn build(msg_type: u8, my_port: u32, payload: &Vec<String>) -> Result<Value, failure::Error>{
@@ -62,7 +63,7 @@ pub struct Message {
 //     }
 // }
 
-pub fn build(msg_type: u8, my_port: u32, payload: &Vec<String>) -> Result<Value, failure::Error>{
+pub fn build(msg_type: u8, my_port: u16, payload: &Vec<SocketAddr>) -> Result<Value, failure::Error>{
 
     let data = json! ({
         "protocol": "bthereum".to_string(),
@@ -75,12 +76,12 @@ pub fn build(msg_type: u8, my_port: u32, payload: &Vec<String>) -> Result<Value,
     Ok(data)
 }
 
-pub fn parse(msg: &Value) -> (String, u8, u8, u32, Vec<String>) {
+pub fn parse(msg: &Value) -> (String, u8, u8, u16, Vec<SocketAddr>) {
     let msg: Message = serde_json::from_value(msg.clone()).unwrap();
     let ver: String = msg.version;
     let cmd: u8 = msg.msg_type;
-    let my_port: u32 = msg.my_port;
-    let payload: Vec<String> = msg.payload;
+    let my_port: u16 = msg.my_port;
+    let payload: Vec<SocketAddr> = msg.payload;
 
     let error = "error".to_string();
     let ok = "ok".to_string();
@@ -97,11 +98,11 @@ pub fn parse(msg: &Value) -> (String, u8, u8, u32, Vec<String>) {
 }
 
 fn main() {
-    let mut vec: Vec<String> = Vec::new();
-    vec.push("aaa".to_string());
-    vec.push("bbb".to_string());
-    let data = build(1, 33332, &vec).unwrap();
-    let (result, reason, cmd, my_port, payload) = parse(&data);
-    println!("result: {}, reason: {}, cmd: {}, myport: {}, payload: {:?}", result, reason, cmd, my_port, payload);
+    // let mut vec: Vec<String> = Vec::new();
+    // vec.push("aaa".to_string());
+    // vec.push("bbb".to_string());
+    // let data = build(1, 33332, &vec).unwrap();
+    // let (result, reason, cmd, my_port, payload) = parse(&data);
+    // println!("result: {}, reason: {}, cmd: {}, myport: {}, payload: {:?}", result, reason, cmd, my_port, payload);
 }
 
