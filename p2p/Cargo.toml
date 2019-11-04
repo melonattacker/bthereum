@@ -12,19 +12,3 @@ serde_json = "1.0.41"
 log = "0.4"
 env_logger = "0.7.1"
 failure = "0.1.6"
-
-[[bin]]
-name = "main"
-path = "src/main.rs"
-
-[[bin]]
-name = "message"
-path = "src/message.rs"
-
-[[bin]]
-name = "server_core"
-path = "src/server_core.rs"
-
-[[bin]]
-name = "connection_manager"
-path = "src/connection_manager.rs"

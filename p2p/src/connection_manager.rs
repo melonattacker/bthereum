@@ -2,9 +2,10 @@ use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream, SocketAddr, IpAddr, Ipv4Addr, Shutdown};
 use std::{str, thread, time::Duration};
 use serde_json::{Value};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, Weak};
 
-mod message;
+use super::message;
+use super::thread_helper;
 
 // const PROTOCOL_NAME: &'static str = "bthereum";
 // const VERSION: &'static str = "0.1.0";
@@ -24,18 +25,18 @@ mod message;
 // const OK_WITHOUT_PAYLOAD: u8 = 4;
 
 #[derive(Debug)]
-struct ChildConnectionManager {
+pub struct ChildConnectionManager {
     addr: SocketAddr,
     parent_addr: SocketAddr,
     core_node_set: Vec<SocketAddr>
 }
 #[derive(Debug)]
-struct ConnectionManager {
+pub struct ConnectionManager {
     inner: Arc<Mutex<ChildConnectionManager>>
 }
 
 impl ConnectionManager {
-    fn new(addr: SocketAddr) -> ConnectionManager {
+    pub fn new(addr: SocketAddr) -> ConnectionManager {
         println!("Initializing ConnectionManager...");
         let parent_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(000, 0, 0, 0)), 000);
         let manager = ConnectionManager {
@@ -52,8 +53,8 @@ impl ConnectionManager {
         return manager;
     }
 
-    fn start(&mut self) {
-        self._wait_for_access();
+    pub fn start(&mut self) {
+        self._wait_for_access().unwrap();
         let local_self = self.inner.clone();
         thread::spawn(move || {
             local_self.lock().unwrap()._check_peers_connection();
@@ -63,6 +64,7 @@ impl ConnectionManager {
     fn _wait_for_access(&mut self) -> Result<(), failure::Error> {
         let _local_self = self.inner.clone();
         let listener = TcpListener::bind(_local_self.lock().unwrap().addr).unwrap();
+
         loop {
             let local_self = self.inner.clone();
             println!("Waiting for the connection...");
@@ -73,25 +75,42 @@ impl ConnectionManager {
             });
         }
     }
-}
 
-impl ChildConnectionManager {
-    fn join_network(&mut self, address: SocketAddr) -> Result<(), failure::Error> {
-        self.parent_addr = address;
+    pub fn connection_close(&mut self) -> Result<(), failure::Error> {
+        let local_self = self.inner.clone();
+        let stream = TcpStream::connect(local_self.lock().unwrap().addr)?;
+        stream.shutdown(Shutdown::Both).expect("shutdown call failed");
+        let temp_vec: Vec<SocketAddr> = Vec::new();
+        // MSG_REMOVE
+        let msg = message::build(2, local_self.lock().unwrap().addr.port(), &temp_vec).unwrap();
+        let result = local_self.lock().unwrap().send_msg(local_self.lock().unwrap().parent_addr, &msg).unwrap();
+        if result != () {
+            local_self.lock().unwrap()._remove_peer(local_self.lock().unwrap().parent_addr).unwrap();
+        }
+        return Ok(());
+    }
+
+    pub fn join_network(&mut self, address: SocketAddr) -> Result<(), failure::Error> {
+        let local_self = self.inner.clone();
+        local_self.lock().unwrap().parent_addr = address;
         self._connect_to_p2pnw(address);
         return Ok(());
     }
 
     fn _connect_to_p2pnw(&mut self, address: SocketAddr) -> Result<(), failure::Error> {
+        let local_self = self.inner.clone();
         let mut stream = TcpStream::connect(address)?;
         let temp_vec: Vec<SocketAddr> = Vec::new();
         // MSG_ADD
-        let msg = message::build(1, self.addr.port(), &temp_vec).unwrap();
+        let msg = message::build(1, local_self.lock().unwrap().addr.port(), &temp_vec).unwrap();
         let string: &str = msg.as_str().unwrap();
         stream.write_all(string.as_bytes())?;
         stream.shutdown(Shutdown::Both).expect("shutdown call failed");
         return Ok(());
     }
+}
+
+impl ChildConnectionManager {
 
     fn _handle_message(&mut self, mut stream: TcpStream, addr: SocketAddr) -> Result<(), failure::Error> {
         let mut buffer = [0u8; 1024];
@@ -151,10 +170,10 @@ impl ChildConnectionManager {
                     println!("List for Core nodes was requested!!");
                     // MSG_CORE_LIST
                     let msg = message::build(3, addr.port(), &self.core_node_set).unwrap();
-                    let socketAddress = SocketAddr::new(addr.ip(), peer_port);
-                    let result = self.send_msg(socketAddress, &msg).unwrap();
+                    let socket_address = SocketAddr::new(addr.ip(), peer_port);
+                    let result = self.send_msg(socket_address, &msg).unwrap();
                     if result != () {
-                        self._remove_peer(socketAddress);
+                        self._remove_peer(socket_address).unwrap();
                     }
                     return Ok(())
                 }
@@ -209,7 +228,7 @@ impl ChildConnectionManager {
         let mut changed: bool = false;
         let mut dead_core_node_set: Vec<SocketAddr> = Vec::new();
         for i in 0..self.core_node_set.len() {
-            let mut result = self._is_alive(self.core_node_set[i]).unwrap();
+            let result = self._is_alive(self.core_node_set[i]).unwrap();
             if result != true {
                 dead_core_node_set.push(self.core_node_set[i]);
                 self.core_node_set.remove(i);
@@ -256,29 +275,11 @@ impl ChildConnectionManager {
         }
     }
 
-    fn send_msg(&mut self, socketAddress: SocketAddr, msg: &Value) -> Result<(), failure::Error> {
-        let mut stream = TcpStream::connect(socketAddress)?;
+    fn send_msg(&mut self, socket_address: SocketAddr, msg: &Value) -> Result<(), failure::Error> {
+        let mut stream = TcpStream::connect(socket_address)?;
         let string: &str = msg.as_str().unwrap();
         stream.write_all(string.as_bytes())?;
         stream.shutdown(Shutdown::Both).expect("shutdown call failed");
         return Ok(())
     }
-
-    fn connection_close(&mut self) -> Result<(), failure::Error> {
-        let mut stream = TcpStream::connect(self.addr)?;
-        stream.shutdown(Shutdown::Both).expect("shutdown call failed");
-        let temp_vec: Vec<SocketAddr> = Vec::new();
-        // MSG_REMOVE
-        let msg = message::build(2, self.addr.port(), &temp_vec).unwrap();
-        self.send_msg(self.parent_addr, &msg);
-        return Ok(());
-    }
-}
-fn main() {
-    let socket: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 33333);
-    let mut manager = ConnectionManager::new(socket);
-    // let socket2: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 33331);
-    // let manager2 = manager._add_peer(socket2);
-    &manager._wait_for_access();
-    // manager2._remove_peer(socket2)
 }

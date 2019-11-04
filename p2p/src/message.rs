@@ -97,12 +97,4 @@ pub fn parse(msg: &Value) -> (String, u8, u8, u16, Vec<SocketAddr>) {
     }
 }
 
-fn main() {
-    // let mut vec: Vec<String> = Vec::new();
-    // vec.push("aaa".to_string());
-    // vec.push("bbb".to_string());
-    // let data = build(1, 33332, &vec).unwrap();
-    // let (result, reason, cmd, my_port, payload) = parse(&data);
-    // println!("result: {}, reason: {}, cmd: {}, myport: {}, payload: {:?}", result, reason, cmd, my_port, payload);
-}
 
