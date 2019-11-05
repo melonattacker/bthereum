@@ -5,7 +5,8 @@ use std::net::{SocketAddr, IpAddr, Ipv4Addr};
 pub mod message;
 pub mod connection_manager;
 pub mod server_core;
-pub mod thread_helper;
+pub mod server1;
+pub mod server2;
 use crossbeam;
 
 fn main() {
@@ -21,26 +22,12 @@ fn main() {
     if role == "server1" {
         let my_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 33333);
         let parent_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 00000);
-        let mut server: server_core::ServerCore = server_core::ServerCore::new(my_address, parent_address);
-        let local_server = server.inner.clone();
-        local_server.lock().unwrap().start();
+        server1::main(my_address, parent_address).unwrap();
     } 
     else if role == "server2" {
         let my_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 33334);
         let parent_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 33333);
-        let mut server: server_core::ServerCore = server_core::ServerCore::new(my_address, parent_address);
-
-        let local_server = server.inner.clone();
-
-        let handle = thread::spawn(move || {
-            let local_server2 = server.inner.clone();
-            // startが呼ばれていない
-            local_server2.lock().unwrap().start();
-        });
-        
-        local_server.lock().unwrap().join_network().unwrap();
-
-        handle.join().unwrap();
+        server2::main(my_address, parent_address);
     }
     else {
         missing_role();

@@ -15,6 +15,7 @@ pub struct ChildServerCore {
     pub cm: connection_manager::ConnectionManager
 }
 
+#[derive(Debug)]
 pub struct ServerCore {
     pub inner: Arc<Mutex<ChildServerCore>>
 }
@@ -56,13 +57,13 @@ impl ChildServerCore {
         return Ok(())
     }
 
-    pub fn shutdown(&mut self) {
-        self.server_state = 4;
-        println!("Shutdown server...");
-        self.cm.connection_close().unwrap();
-    }
-
     pub fn get_my_current_state(&self) -> u8 {
         return self.server_state;
+    }
+
+    pub fn shutdown(&mut self) {
+        println!("Shutdown server...");
+        // self.server_state = 4;
+        // self.cm.connection_close().unwrap();
     }
 }
