@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex, Weak};
+use std::sync::{Arc, Weak};
 
 
 #[derive(Clone, Debug)]

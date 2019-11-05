@@ -1,6 +1,6 @@
 use super::connection_manager;
 use std::net::{SocketAddr, IpAddr, Ipv4Addr};
-use std::{thread};
+use std::sync::{Arc, Mutex};
 
 // STATE_INIT = 1
 // STATE_STANDBY = 2
@@ -8,33 +8,44 @@ use std::{thread};
 // STATE_SHUTTING_DOWN = 4
 
 #[derive(Debug)]
+pub struct ChildServerCore {
+    pub server_state: u8,
+    pub addr: SocketAddr,
+    pub parent_addr: SocketAddr,
+    pub cm: connection_manager::ConnectionManager
+}
+
 pub struct ServerCore {
-    server_state: u8,
-    addr: SocketAddr,
-    parent_addr: SocketAddr,
-    cm: connection_manager::ConnectionManager
+    pub inner: Arc<Mutex<ChildServerCore>>
 }
 
 impl ServerCore {
     pub fn new(addr: SocketAddr, parent_addr: SocketAddr) -> ServerCore {
         let cm = connection_manager::ConnectionManager::new(addr);
         let server = ServerCore { 
-            server_state: 1,
-            addr: addr,
-            parent_addr: parent_addr,
-            cm: cm
+            inner: Arc::new(
+                Mutex::new(
+                    ChildServerCore {
+                        server_state: 1,
+                        addr: addr,
+                        parent_addr: parent_addr,
+                        cm: cm
+                    }
+                )
+            )
         };
         println!("Server IP address is set to ...{}", addr.ip());
         return server;
     }
+}
 
+impl ChildServerCore {
     pub fn start(&mut self) {
         self.server_state = 2;
         self.cm.start();
     }
 
     pub fn join_network(&mut self) -> Result<(), failure::Error> {
-        println!("hogehogehogehoge");
         let parent_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(000, 0, 0, 0)), 000);
         if self.parent_addr != parent_addr {
             self.server_state = 3;
@@ -54,12 +65,4 @@ impl ServerCore {
     pub fn get_my_current_state(&self) -> u8 {
         return self.server_state;
     }
-}
-
-fn main() {
-    // let mut _server = ServerCore::new();
-    // &_server.start();
-    // &_server.join_network();
-    // &_server.shutdown();
-    // println!("state: {}", _server.get_my_current_state());
 }

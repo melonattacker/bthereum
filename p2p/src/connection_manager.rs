@@ -2,10 +2,10 @@ use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream, SocketAddr, IpAddr, Ipv4Addr, Shutdown};
 use std::{str, thread, time::Duration};
 use serde_json::{Value};
-use std::sync::{Arc, Mutex, Weak};
+use std::sync::{Arc, Mutex};
+use crossbeam;
 
 use super::message;
-use super::thread_helper;
 
 // const PROTOCOL_NAME: &'static str = "bthereum";
 // const VERSION: &'static str = "0.1.0";
@@ -50,29 +50,36 @@ impl ConnectionManager {
                 )
             )
         };
+        let local_self = manager.inner.clone();
+        local_self.lock().unwrap()._add_peer(addr).unwrap();
         return manager;
     }
 
     pub fn start(&mut self) {
+        // let local_self = self.inner.clone();
+        // crossbeam::thread::scope(|s| {
+        //     s.spawn(|_| {
+        //         self._wait_for_access().unwrap();
+        //     });
+        // }).unwrap();
         self._wait_for_access().unwrap();
-        let local_self = self.inner.clone();
-        thread::spawn(move || {
-            local_self.lock().unwrap()._check_peers_connection();
-        });
+        // thread::spawn(move || {
+        //     local_self.lock().unwrap()._check_peers_connection();
+        // });
     }
 
     fn _wait_for_access(&mut self) -> Result<(), failure::Error> {
         let _local_self = self.inner.clone();
         let listener = TcpListener::bind(_local_self.lock().unwrap().addr).unwrap();
-
         loop {
             let local_self = self.inner.clone();
             println!("Waiting for the connection...");
             let (stream, addr) = listener.accept()?;
             println!("Connected by... {}", addr);
-            thread::spawn(move|| {
+            let handle = thread::spawn(move|| {
                 local_self.lock().unwrap()._handle_message(stream, addr).unwrap();
             });
+            handle.join().unwrap();
         }
     }
 
@@ -93,7 +100,7 @@ impl ConnectionManager {
     pub fn join_network(&mut self, address: SocketAddr) -> Result<(), failure::Error> {
         let local_self = self.inner.clone();
         local_self.lock().unwrap().parent_addr = address;
-        self._connect_to_p2pnw(address);
+        self._connect_to_p2pnw(address).unwrap();
         return Ok(());
     }
 
@@ -103,7 +110,8 @@ impl ConnectionManager {
         let temp_vec: Vec<SocketAddr> = Vec::new();
         // MSG_ADD
         let msg = message::build(1, local_self.lock().unwrap().addr.port(), &temp_vec).unwrap();
-        let string: &str = msg.as_str().unwrap();
+        let string: String = msg.to_string();
+        // ここでエラー
         stream.write_all(string.as_bytes())?;
         stream.shutdown(Shutdown::Both).expect("shutdown call failed");
         return Ok(());
@@ -124,6 +132,8 @@ impl ChildConnectionManager {
             let data: &str = str::from_utf8(&buffer[..nbytes])?;
             let message: Value = serde_json::from_str(data).unwrap();
             let (result, reason, cmd, peer_port, payload) = message::parse(&message);
+            // ホストとメッセージ受付用のポートをがっちゃんこ
+            let connect_addr = SocketAddr::new(addr.ip(), peer_port);
             println!("result: {}, reason: {}, cmd: {}, peer_port: {}, payload: {:?}", result, reason, cmd, peer_port, payload);
             let status = (result, reason);
             // ERR_PROTOCOL_UNMATCH
@@ -141,7 +151,7 @@ impl ChildConnectionManager {
                 // MSG_ADD
                 if cmd == 1 {
                     println!("ADD node request was received!!");
-                    self._add_peer(addr).unwrap();
+                    self._add_peer(connect_addr).unwrap();
                     if addr == self.addr {
                         return Ok(());
                     }
@@ -155,7 +165,7 @@ impl ChildConnectionManager {
                 // MSG_REMOVE
                 else if cmd == 2 {
                     println!("REMOVE node request was received!! from: {}", addr);
-                    self._remove_peer(addr).unwrap();
+                    self._remove_peer(connect_addr).unwrap();
                     // MSG_CORE_LIST
                     let msg = message::build(3, addr.port(), &self.core_node_set).unwrap();
                     self.send_msg_to_all_peers(&msg);
@@ -189,7 +199,7 @@ impl ChildConnectionManager {
                     // 受信したリストを上書きしてるのでセキュアではない
                     println!("Refresh the core node list...");
                     let new_core_set = payload;
-                    println!("latest core node list:{:#?}", new_core_set);
+                    println!("latest core node list:{:?}", new_core_set);
                     self.core_node_set = new_core_set;
                     return Ok(())
                 }
@@ -205,8 +215,9 @@ impl ChildConnectionManager {
     }
 
     fn _add_peer(&mut self, peer: SocketAddr) -> Result<(), failure::Error> {
-        println!("Adding peer: {}", peer);
+        println!("Adding peer: ({})", peer);
         self.core_node_set.push(peer);
+        println!("Current Core List: {:?}", self.core_node_set);
         return Ok(())
     }
 
@@ -214,7 +225,7 @@ impl ChildConnectionManager {
         if self.core_node_set.contains(&peer) {
             for i in 0..self.core_node_set.len() {
                 if self.core_node_set[i] == peer {
-                    println!("Removing peer: {}", peer);
+                    println!("Removing peer: ({})", peer);
                     self.core_node_set.remove(i);
                     println!("Current Core List: {:?}", self.core_node_set);
                 }
@@ -277,7 +288,7 @@ impl ChildConnectionManager {
 
     fn send_msg(&mut self, socket_address: SocketAddr, msg: &Value) -> Result<(), failure::Error> {
         let mut stream = TcpStream::connect(socket_address)?;
-        let string: &str = msg.as_str().unwrap();
+        let string: String = msg.to_string();
         stream.write_all(string.as_bytes())?;
         stream.shutdown(Shutdown::Both).expect("shutdown call failed");
         return Ok(())

@@ -90,7 +90,7 @@ pub fn parse(msg: &Value) -> (String, u8, u8, u16, Vec<SocketAddr>) {
         return (error, 1, 8, my_port, payload);
     } else if ver != "0.1.0".to_string() {
         return (error, 2, 8, my_port, payload);
-    } else if cmd == 2 {
+    } else if cmd == 3 {
         return (ok, 3, cmd, my_port, payload);
     } else {
         return (ok, 4, cmd, my_port, payload);
