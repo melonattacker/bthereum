@@ -3,11 +3,9 @@ extern crate log;
 use std::{env, thread, time};
 use std::net::{SocketAddr, IpAddr, Ipv4Addr};
 pub mod message;
-pub mod connection_manager;
 pub mod server_core;
 pub mod server1;
 pub mod server2;
-use crossbeam;
 
 fn main() {
     env::set_var("RUST_LOG", "debug");

@@ -2,7 +2,7 @@ use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream, SocketAddr, IpAddr, Ipv4Addr, Shutdown};
 use std::{str, thread, time::Duration};
 use serde_json::{Value};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}};
 use crossbeam;
 
 use super::message;
@@ -27,12 +27,12 @@ use super::message;
 #[derive(Debug)]
 pub struct ChildConnectionManager {
     addr: SocketAddr,
-    parent_addr: SocketAddr,
-    core_node_set: Vec<SocketAddr>
+    parent_addr: SocketAddr
 }
 #[derive(Debug)]
 pub struct ConnectionManager {
-    inner: Arc<Mutex<ChildConnectionManager>>
+    inner: Arc<Mutex<ChildConnectionManager>>,
+    pub is_running: Arc<AtomicBool>
 }
 
 impl ConnectionManager {
@@ -48,7 +48,8 @@ impl ConnectionManager {
                         core_node_set: Vec::new()
                     }
                 )
-            )
+            ),
+            is_running: Arc::new(AtomicBool::new(false)),
         };
         let local_self = manager.inner.clone();
         local_self.lock().unwrap()._add_peer(addr).unwrap();
@@ -56,31 +57,23 @@ impl ConnectionManager {
     }
 
     pub fn start(&mut self) {
-        // let local_self = self.inner.clone();
-        // crossbeam::thread::scope(|s| {
-        //     s.spawn(|_| {
-        //         self._wait_for_access().unwrap();
-        //     });
-        // }).unwrap();
-        self._wait_for_access().unwrap();
-        // thread::spawn(move || {
-        //     local_self.lock().unwrap()._check_peers_connection();
-        // });
+        self._wait_for_access();
     }
 
-    fn _wait_for_access(&mut self) -> Result<(), failure::Error> {
+    fn _wait_for_access(&mut self) {
         let _local_self = self.inner.clone();
         let listener = TcpListener::bind(_local_self.lock().unwrap().addr).unwrap();
-        loop {
+        while self.is_running.load(Ordering::Relaxed) {
             let local_self = self.inner.clone();
             println!("Waiting for the connection...");
-            let (stream, addr) = listener.accept()?;
+            let (stream, addr) = listener.accept().unwrap();
             println!("Connected by... {}", addr);
             let handle = thread::spawn(move|| {
                 local_self.lock().unwrap()._handle_message(stream, addr).unwrap();
             });
             handle.join().unwrap();
         }
+        println!("hogehoge");
     }
 
     pub fn connection_close(&mut self) -> Result<(), failure::Error> {
@@ -111,7 +104,6 @@ impl ConnectionManager {
         // MSG_ADD
         let msg = message::build(1, local_self.lock().unwrap().addr.port(), &temp_vec).unwrap();
         let string: String = msg.to_string();
-        // ここでエラー
         stream.write_all(string.as_bytes())?;
         stream.shutdown(Shutdown::Both).expect("shutdown call failed");
         return Ok(());
@@ -292,5 +284,11 @@ impl ChildConnectionManager {
         stream.write_all(string.as_bytes())?;
         stream.shutdown(Shutdown::Both).expect("shutdown call failed");
         return Ok(())
+    }
+
+    pub fn shutdown(&mut self) {
+        self.server_state = 4;
+        println!("Shutdown server...");
+        self.cm.connection_close().unwrap();
     }
 }
