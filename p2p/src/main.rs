@@ -2,10 +2,10 @@
 extern crate log;
 use std::{env, thread, time};
 use std::net::{SocketAddr, IpAddr, Ipv4Addr};
-pub mod message;
-pub mod server_core;
-pub mod server1;
-pub mod server2;
+mod message;
+mod server_core;
+mod server1;
+mod server2;
 
 fn main() {
     env::set_var("RUST_LOG", "debug");
