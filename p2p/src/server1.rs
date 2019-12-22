@@ -20,13 +20,11 @@ pub fn main(my_addr: SocketAddr, parent_addr: SocketAddr) -> Result<(), Error> {
     thread::spawn(move || {
         // let local_server2 = server.inner.clone();
         server.start();
-        println!("hogehogehoge");
     });
 
     while !term.load(Ordering::Relaxed) {
     }
     local_server.lock().unwrap().shutdown();
-    println!("{:#?}", local_server);
 
     // handle.join().unwrap();
     Ok(())
