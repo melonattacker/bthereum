@@ -11,12 +11,12 @@ fn main() {
     env::set_var("RUST_LOG", "debug");
     env_logger::init();
     let args: Vec<String> = env::args().collect();
-    if args.len() != 2 {
-        error!("Please specify [server|client] [addr:port].");
+    if args.len() != 3 {
+        error!("Please specify [server1|server2]");
         std::process::exit(1);
     }
-    let role: &str = &args[1];
-    // let address = &args[2];
+    let role: &str = &args[2];
+    let address = &args[2];
     if role == "server1" {
         let my_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 33333);
         let parent_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 00000);
@@ -33,6 +33,6 @@ fn main() {
 }
 
 fn missing_role() {
-    error!("Please specify server or client on the 1st argument.");
+    error!("Please specify server1 or server2 on the 1st argument.");
     std::process::exit(1);
 }
