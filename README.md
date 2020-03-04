@@ -19,6 +19,7 @@ $ cargo run main.rs server2
 ```
 
 server1にノード追加要求を送信し、server2がノードリストに追加される
+
 ctrl + Cでserver1にノード削除要求を送信し、server2がノードリストから削除される
 
 ## 注意
